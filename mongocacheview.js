@@ -1,6 +1,10 @@
 //Main Loop
-
+rs.secondaryOk()
 db = db.getSiblingDB("admin")
+
+if (typeof format == 'undefined') { var format = 'screen'}
+
+format = format.toLowerCase()
 
 var dbInfos = db.adminCommand({listDatabases:1, nameOnly: true})
 
@@ -40,14 +44,16 @@ for(d=0;d<dbNames.length;d++){
 
 reportTime = 10
 while(true){
+    dt = Date()
+    if (format !== 'json'){
         print('\033[2J')
-        print( "Collection                                                           \tSize\tCached\t%tage\tDelta\tRead\tWritten\tUsed")
+        print( "Collection                                                           \tSize\tCached\t%tage\tDelta\tRead\tWritten\tUsed")}
 
     for(c=0;c<collectionInfos.length;c++) {
         collInfo = collectionInfos[c]
         db = db.getSiblingDB(collInfo.db)
         mb = 1024*1024
-        collStats = db.getCollection(collInfo.coll).stats({scale: mb, indexDetails: true})
+        collStats = db.getCollection(collInfo.coll).stats({indexDetails: true})
 
         if (collInfo.coll.startsWith('system.')) {
             continue;
@@ -70,12 +76,30 @@ while(true){
         pageUseDiff = Math.floor((pagesUsed - collInfo.pagesUsed)/reportTime)
 
         name = collInfo.db + "." + collInfo.coll
-        lgth = name.length<=70?name.length:70
-        name = name + Array(70 - lgth).join(" ")
+        if (format !== 'json'){
+            lgth = name.length<=70?name.length:70
+            name = name + Array(70 - lgth).join(" ")
+        }
 
         if(collSize > 0) {
             pc = Math.floor((inCache / collSize) * 100)
-            print(  name + "\t" + collSize + "\t" +  inCache + "\t" + pc + "\t" + sizeDiff + "\t" + readDiff + "\t" + writeDiff+"\t"+pageUseDiff)
+            if (format !== 'json'){
+                print(  name + "\t" + collSize + "\t" +  inCache + "\t" + pc + "\t" + sizeDiff + "\t" + readDiff + "\t" + writeDiff+"\t"+pageUseDiff)
+            }
+            else {
+                var j = {}
+                j['date'] = dt
+                j['name'] = name
+                j['type'] = 'collection'
+                j['size'] = collSize
+                j['cached'] = inCache
+                j['pct'] = pc
+                j['delta'] = sizeDiff
+                j['read'] = readDiff
+                j['written'] = writeDiff
+                j['used'] = pageUseDiff
+                print(JSON.stringify(j))
+            }
         }
         collectionInfos[c].inCache = inCache
         collectionInfos[c].cacheRead = cacheRead
@@ -104,7 +128,23 @@ while(true){
 
             if(indexSize > 0) {
                 pc = Math.floor((indexInCache / indexSize) * 100)
-                print( nameTab + "\t" + indexSize + "\t" +  indexInCache + "\t" + pc + "\t" + sizeDiff + "\t" + readDiff + "\t" + writeDiff+"\t"+pageUseDiff)
+                if (format !== 'json'){
+                    print( nameTab + "\t" + indexSize + "\t" +  indexInCache + "\t" + pc + "\t" + sizeDiff + "\t" + readDiff + "\t" + writeDiff+"\t"+pageUseDiff)
+                }
+                else {
+                var j = {}
+                j['date'] = dt
+                j['name'] = name + '.' + nameIndex
+                j['type'] = 'index'
+                j['size'] = indexSize
+                j['cached'] = indexInCache
+                j['pct'] = pc
+                j['delta'] = sizeDiff
+                j['read'] = readDiff
+                j['written'] = writeDiff
+                j['used'] = pageUseDiff
+                print(JSON.stringify(j))
+                }
             }
 
             collectionInfos[c].indexesInfo[i].inCache = indexInCache
